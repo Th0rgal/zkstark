@@ -1,28 +1,21 @@
 %lang starknet
-from src.main import balance, increase_balance
+from src.verifier.main import deposit, get_commitments, get_commitments_amount
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 
 @external
-func test_increase_balance{syscall_ptr: felt*, range_check_ptr, pedersen_ptr: HashBuiltin*}() {
-    let (result_before) = balance.read();
-    assert result_before = 0;
+func test_commiting{syscall_ptr: felt*, range_check_ptr, pedersen_ptr: HashBuiltin*}() {
+    deposit(1);
+    deposit(2);
+    deposit(3);
 
-    increase_balance(42);
+    let (commitments_len, commitments) = get_commitments();
+    assert commitments_len = 3;
+    assert commitments[0] = 1;
+    assert commitments[1] = 2;
+    assert commitments[2] = 3;
 
-    let (result_after) = balance.read();
-    assert result_after = 42;
-    return ();
-}
-
-@external
-func test_cannot_increase_balance_with_negative_value{
-    syscall_ptr: felt*, range_check_ptr, pedersen_ptr: HashBuiltin*
-}() {
-    let (result_before) = balance.read();
-    assert result_before = 0;
-
-    %{ expect_revert("TRANSACTION_FAILED", "Amount must be positive") %}
-    increase_balance(-42);
+    let (amount) = get_commitments_amount();
+    assert amount = commitments_len;
 
     return ();
 }

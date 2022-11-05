@@ -15,6 +15,9 @@ b = FieldElement(random.randrange(P))
 
 # 2) we compute hash(a, b) with https://docs.starkware.co/starkex/pedersen-hash-function.html
 hashed = pedersen_hash(a, b)
+assert hashed == FieldElement(
+    3354195926146245348808828673101435147341190819738769852354468089986559161238
+)
 
 # 3) we deposit to the contract using this hash
 

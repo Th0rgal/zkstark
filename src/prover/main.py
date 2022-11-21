@@ -1,5 +1,6 @@
 from tools.field import P, FieldElement
 from tools.pedersen import pedersen_hash
+from tools.curve import Curve, CurvePoint, O
 import random
 
 # Given public b, a commitments list and a private a, we need to generate a proof
@@ -9,24 +10,33 @@ import random
 # we use a seed to keep this example deterministic
 random.seed(0)
 
-# 1) we generate two random felts
-a = FieldElement(random.randrange(P))
-b = FieldElement(random.randrange(P))
+# 1) we generate two random felts, 0 is forbidden
+a = FieldElement(random.randrange(1, P))
+b = FieldElement(random.randrange(1, P))
 
 # 2) we compute hash(a, b) with https://docs.starkware.co/starkex/pedersen-hash-function.html
-hashed = pedersen_hash(a, b)
-assert hashed == FieldElement(
-    3354195926146245348808828673101435147341190819738769852354468089986559161238
+P1 = CurvePoint(
+    FieldElement(
+        996781205833008774514500082376783249102396023663454813447423147977397232763
+    ),
+    FieldElement(
+        1668503676786377725805489344771023921079126552019160156920634619255970485781
+    ),
 )
 
-# 3) we deposit to the contract using this hash
+stark_curve = Curve(
+    FieldElement(1),
+    FieldElement(
+        3141592653589793238462643383279502884197169399375105820974944592307816406665
+    ),
+)
 
-# 4) we query the commited elements
-# here I just put a few other random values
-commitments = [
-    hashed,
-    random.randrange(P),
-    random.randrange(P),
-    random.randrange(P),
-    random.randrange(P),
-]
+trace = []
+trace.append(1798716007562728905295480679789526322175868328062420237419143593021674992973)
+P1.write(trace)
+
+print(stark_curve.mul(1798716007562728905295480679789526322175868328062420237419143593021674992973, P1))
+
+#stark_curve.trace_add(trace)
+#for i, value in enumerate(trace):
+#    print("[" + str(i) + "]", value)

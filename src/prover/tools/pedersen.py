@@ -1,6 +1,6 @@
 # My naive implementation of starkware pedersen hash, described here: https://docs.starkware.co/starkex/pedersen-hash-function.html
 from tools.field import FieldElement
-from tools.ecdsa import Curve, CurvePoint
+from tools.curve import Curve, CurvePoint
 
 P0 = CurvePoint(
     FieldElement(

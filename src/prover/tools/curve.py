@@ -2,7 +2,6 @@
 # source: https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Point_addition
 
 from tools.field import FieldElement
-import math
 
 
 class CurvePoint:
@@ -23,7 +22,7 @@ class CurvePoint:
         trace.append(self.infinity)
 
 
-O = CurvePoint(0, 0, 1)
+O = CurvePoint(0, 1, 1)
 
 
 class Curve:
@@ -92,6 +91,22 @@ class Curve:
         y = coef * (p.x - x) - p.y
         return CurvePoint(x, y)
 
+    def trace_double(self, trace: list):
+        ap = len(trace)
+        p = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
+
+        coef = (3 * (p.x**2) + self.alpha) / (2 * p.y)
+        trace.append(coef)
+
+        if p.infinity:
+            O.write(trace)
+        else:
+            x = coef**2 - p.x - p.x
+            y = coef * (p.x - x) - p.y
+            trace.append(x)
+            trace.append(y)
+            trace.append(0)
+
     # multiplication implemented with montgomery ladder
     def mul(self, k: int, p: CurvePoint):
         R0 = O
@@ -111,22 +126,58 @@ class Curve:
 
         return R0
 
-
     # multiplication implemented with montgomery ladder
-    def trace_mul(self, k: int, p: CurvePoint):
+    def trace_mul(self, trace, max_bit_size=252):
+        ap = len(trace)
+
+        k = trace[ap - 4]
+        R1 = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
         R0 = O
-        R1 = p
         bits = []
+
+        R1.write(trace)
+        ap += 3
+
+        R0.write(trace)
+        ap += 3
+
         while k != 0:
             bits.append(k % 2)
             k //= 2
 
-        for bit in reversed(bits):
-            if bit == 0:
-                R1 = self.add(R0, R1)
-                R0 = self.double(R0)
-            else:
-                R0 = self.add(R0, R1)
-                R1 = self.double(R1)
+        while len(bits) < max_bit_size:
+            bits.append(0)
 
-        return R0
+        for bit in reversed(bits):
+
+            self.trace_add(trace)
+            ap += 4
+            added = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
+
+            trace.append(bit)
+            ap += 1
+
+            if bit == 0:
+                R0.write(trace)
+                ap += 3
+                self.trace_double(trace)
+                ap += 4
+                doubled = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
+                R1 = added
+                R0 = doubled
+            else:
+                R1.write(trace)
+                ap += 3
+                self.trace_double(trace)
+                ap += 4
+                doubled = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
+                R1 = doubled
+                R0 = added
+
+            R1.write(trace)
+            ap += 3
+
+            R0.write(trace)
+            ap += 3
+
+        return trace

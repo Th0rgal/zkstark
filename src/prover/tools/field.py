@@ -30,7 +30,7 @@ class FieldElement:
     """
 
     k_modulus = P
-    generator_val = 5
+    generator_val = 3
 
     def __init__(self, val):
         self.val = val % FieldElement.k_modulus

@@ -1,6 +1,6 @@
 from tools.field import P, FieldElement
-from tools.pedersen import pedersen_hash
-from tools.curve import Curve, CurvePoint, O
+from tools.pedersen import trace_pedersen_hash
+from tools.polynomial import X, interpolate_poly
 import random
 
 # Given public b, a commitments list and a private a, we need to generate a proof
@@ -15,23 +15,23 @@ a = FieldElement(random.randrange(1, P))
 b = FieldElement(random.randrange(1, P))
 
 # 2) we compute hash(a, b) with https://docs.starkware.co/starkex/pedersen-hash-function.html
-P1 = CurvePoint(
-    FieldElement(
-        996781205833008774514500082376783249102396023663454813447423147977397232763
-    ),
-    FieldElement(
-        1668503676786377725805489344771023921079126552019160156920634619255970485781
-    ),
-)
-
-stark_curve = Curve(
-    FieldElement(1),
-    FieldElement(
-        3141592653589793238462643383279502884197169399375105820974944592307816406665
-    ),
-)
-
 trace = []
-trace.append(562728905295480679789526322175868328062420237419143593021674992973)
-P1.write(trace)
-stark_curve.trace_mul(trace, max_bit_size=248)
+trace.append(a)
+trace.append(b)
+trace_pedersen_hash(trace)
+hashed = trace[-3]  # CurvePoint.from_trace(trace).x
+assert len(trace) == 9133
+
+# 3) we create a small subgroup of F which can contain the trace
+# P-1 = 2^192 * 5 * 7 * 98714381 * 166848103
+# So 10240 = 5*2^11 | P-1
+# We can find the generator of this subgroup
+g = FieldElement.generator() ** (2 ** (192 - 11) * 7 * 98714381 * 166848103)
+assert g.is_order(10240)
+
+# We can then find the elements of this subgroup
+G = [g**i for i in range(10240)]
+
+# 4) we interpolate the trace to find the polynomial
+f = interpolate_poly(G[: len(trace)], trace)
+print(f._repr_latex_())

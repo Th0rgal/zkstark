@@ -56,41 +56,51 @@ LOW_PART_MASK = 2**248 - 1
 
 def pedersen_hash(a: FieldElement, b: FieldElement):
 
-    a_high = a.val >> LOW_PART_BITS
-    a_low = a.val & LOW_PART_MASK
+    a_high = FieldElement(a.val >> LOW_PART_BITS)
+    a_low = FieldElement(a.val & LOW_PART_MASK)
     a_part = stark_curve.add(stark_curve.mul(a_low, P1), stark_curve.mul(a_high, P2))
 
-    b_high = b.val >> LOW_PART_BITS
-    b_low = b.val & LOW_PART_MASK
+    b_high = FieldElement(b.val >> LOW_PART_BITS)
+    b_low = FieldElement(b.val & LOW_PART_MASK)
     b_part = stark_curve.add(stark_curve.mul(b_low, P3), stark_curve.mul(b_high, P4))
 
     return stark_curve.add(stark_curve.add(P0, a_part), b_part).x
 
 
 def trace_pedersen_hash(trace: list):
-    ap = len(trace)
 
-    a_high = trace[ap - 2] >> LOW_PART_BITS
-    a_low = trace[ap - 3] & LOW_PART_MASK
-    b_high = trace[ap - 3] >> LOW_PART_BITS
-    b_low = trace[ap - 4] & LOW_PART_MASK
+    a = trace[-2]
+    b = trace[-1]
+
+    a_high = FieldElement(a.val >> LOW_PART_BITS)
+    a_low = FieldElement(a.val & LOW_PART_MASK)
+    b_high = FieldElement(b.val >> LOW_PART_BITS)
+    b_low = FieldElement(b.val & LOW_PART_MASK)
 
     trace.append(a_low)
     P1.write(trace)
     stark_curve.trace_mul(trace, max_bit_size=248)
+    # here ap = 4476
 
     trace.append(a_high)
     P2.write(trace)
     stark_curve.trace_mul(trace, max_bit_size=4)
+    # here ap = 4558
 
     trace.append(b_low)
     P3.write(trace)
     stark_curve.trace_mul(trace, max_bit_size=248)
+    # here ap = 9032
 
     trace.append(b_high)
     P4.write(trace)
     stark_curve.trace_mul(trace, max_bit_size=4)
+    # here ap = 9114
 
-
-
-    return stark_curve.add(stark_curve.add(P0, a_part), b_part).x
+    stark_curve.trace_add(trace, 4476 - 3, 4558 - 3)
+    # here ap = 9118
+    stark_curve.trace_add(trace, 9032 - 3, 9114 - 3)
+    # here ap = 9122
+    stark_curve.trace_add(trace, 9118 - 3, 9122 - 3)
+    P0.write(trace)
+    stark_curve.trace_add(trace)

@@ -5,7 +5,9 @@ from tools.field import FieldElement
 
 
 class CurvePoint:
-    def __init__(self, x: FieldElement, y: FieldElement, infinity: bool = 0) -> None:
+    def __init__(
+        self, x: FieldElement, y: FieldElement, infinity: FieldElement = FieldElement(0)
+    ) -> None:
         self.x = x
         self.y = y
         self.infinity = infinity
@@ -21,7 +23,9 @@ class CurvePoint:
         return self.x == __o.x and self.y == __o.y
 
     def __str__(self):
-        return "O" if self.infinity else "(" + repr(self.x) + ", " + repr(self.y) + ")"
+        return (
+            "O" if self.infinity.val else "(" + repr(self.x) + ", " + repr(self.y) + ")"
+        )
 
     def write(self, trace):
         trace.append(self.x)
@@ -29,7 +33,7 @@ class CurvePoint:
         trace.append(self.infinity)
 
 
-O = CurvePoint(0, 1, 1)
+O = CurvePoint(FieldElement(0), FieldElement(1), FieldElement(1))
 
 
 class Curve:
@@ -64,13 +68,14 @@ class Curve:
         return CurvePoint(x, y)
 
     # multiplication implemented with montgomery ladder
-    def mul(self, k: int, p: CurvePoint):
+    def mul(self, k: FieldElement, p: CurvePoint):
         R0 = O
         R1 = p
         bits = []
-        while k != 0:
-            bits.append(k % 2)
-            k //= 2
+        k_val = k.val
+        while k_val != 0:
+            bits.append(k_val % 2)
+            k_val //= 2
 
         for bit in reversed(bits):
             if bit == 0:
@@ -92,6 +97,8 @@ class Curve:
         q = CurvePoint.from_trace(trace, ap - 3 if q_i is None else q_i)
         assert p != q
         coef = (q.y - p.y) / (q.x - p.x)
+        trace.append(coef)
+
         if p == O:
             q.write(trace)
         elif q == O:
@@ -102,25 +109,22 @@ class Curve:
             CurvePoint(x, y).write(trace)
 
     def trace_double(self, trace: list):
-        ap = len(trace)
-        p = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
-
-        coef = (3 * (p.x**2) + self.alpha) / (2 * p.y)
+        p = CurvePoint.from_trace(trace)
+        coef = (FieldElement(3) * (p.x**2) + self.alpha) / (FieldElement(2) * p.y)
         trace.append(coef)
-
-        if p.infinity:
+        if p.infinity.val:
             O.write(trace)
         else:
             x = coef**2 - p.x - p.x
             y = coef * (p.x - x) - p.y
             trace.append(x)
             trace.append(y)
-            trace.append(0)
+            trace.append(FieldElement(0))
 
     # multiplication implemented with montgomery ladder
     def trace_mul(self, trace, k_i=None, p_i=None, max_bit_size=252):
 
-        k = trace[k_i if k_i else -4]
+        k = trace[k_i if k_i else -4].val
         R1 = CurvePoint.from_trace(trace, p_i)
         R0 = O
 
@@ -138,7 +142,7 @@ class Curve:
 
             self.trace_add(trace)
             added = CurvePoint.from_trace(trace)
-            trace.append(bit)
+            trace.append(FieldElement(bit))
 
             if bit == 0:
                 R0.write(trace)

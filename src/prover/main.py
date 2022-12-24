@@ -32,11 +32,6 @@ stark_curve = Curve(
 )
 
 trace = []
-trace.append(
-    562728905295480679789526322175868328062420237419143593021674992973
-)
+trace.append(562728905295480679789526322175868328062420237419143593021674992973)
 P1.write(trace)
-stark_curve.trace_mul(trace, 248)
-
-for i, value in enumerate(trace):
-    print("[" + str(i) + "]", value)
+stark_curve.trace_mul(trace, max_bit_size=248)

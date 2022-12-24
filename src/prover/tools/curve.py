@@ -10,6 +10,13 @@ class CurvePoint:
         self.y = y
         self.infinity = infinity
 
+    def from_trace(trace, start_index=None):
+        if start_index is None:
+            start_index = len(trace) - 3
+        return CurvePoint(
+            trace[start_index], trace[start_index + 1], trace[start_index + 2]
+        )
+
     def __eq__(self, __o: object) -> bool:
         return self.x == __o.x and self.y == __o.y
 
@@ -30,10 +37,12 @@ class Curve:
         self.alpha = alpha
         self.beta = beta
 
+    ############################
+    # Normal computing
+    ############################
+
     def negate(self, p: CurvePoint):
         return CurvePoint(p.x, -p.y, p.infinity)
-
-    # idk how to support point at infinity in the trace for now
 
     def add(self, p: CurvePoint, q: CurvePoint):
         assert p != q
@@ -46,43 +55,6 @@ class Curve:
         y = coef * (p.x - x) - p.y
         return CurvePoint(x, y)
 
-    # [input trace:]
-    # p.x
-    # p.y
-    # p.infinity
-    # q.x
-    # q.y
-    # q.infinity
-    # [appended trace:]
-    # coef -> coef * (trace[ap - 3] - trace[ap - 6]) - (trace[ap - 2] - trace[ap - 5]) = 0
-    # x -> x - ( (coef**2 - trace[ap - 7] - trace[ap - 4]) * (1-p.infinity) * (1-q.infinity) + p.infinity*q.x + q.infinity*p.x ) = 0
-    # y -> similar idea
-    def trace_add(self, trace):
-        ap = len(trace)
-        trace.append((trace[ap - 2] - trace[ap - 5]) / (trace[ap - 3] - trace[ap - 6]))
-        ap += 1
-        coef = trace[ap - 1]
-        # if p = O, q.x, if q = O, return p.x
-        trace.append(
-            (coef**2 - trace[ap - 7] - trace[ap - 4])
-            * (1 - trace[ap - 5])
-            * (1 - trace[ap - 2])
-            + (trace[ap - 5] * trace[ap - 4])
-            + (trace[ap - 2] * trace[ap - 7])
-        )
-        ap += 1
-        x = trace[ap - 1]
-        # if p = O, q.x, if q = O, return p.x
-        trace.append(
-            (coef * (trace[ap - 8] - x) - trace[ap - 7])
-            * (1 - trace[ap - 6])
-            * (1 - trace[ap - 3])
-            + (trace[ap - 6] * trace[ap - 4])
-            + (trace[ap - 3] * trace[ap - 7])
-        )
-        # infinity of p + q = inf(p) and inf(q)
-        trace.append((trace[ap - 6]) * (trace[ap - 3]))
-
     def double(self, p):
         if p == O:
             return O
@@ -90,22 +62,6 @@ class Curve:
         x = coef**2 - p.x - p.x
         y = coef * (p.x - x) - p.y
         return CurvePoint(x, y)
-
-    def trace_double(self, trace: list):
-        ap = len(trace)
-        p = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
-
-        coef = (3 * (p.x**2) + self.alpha) / (2 * p.y)
-        trace.append(coef)
-
-        if p.infinity:
-            O.write(trace)
-        else:
-            x = coef**2 - p.x - p.x
-            y = coef * (p.x - x) - p.y
-            trace.append(x)
-            trace.append(y)
-            trace.append(0)
 
     # multiplication implemented with montgomery ladder
     def mul(self, k: int, p: CurvePoint):
@@ -126,58 +82,78 @@ class Curve:
 
         return R0
 
-    # multiplication implemented with montgomery ladder
-    def trace_mul(self, trace, max_bit_size=252):
+    ############################
+    # Computing with trace
+    ############################
+
+    def trace_add(self, trace, p_i=None, q_i=None):
         ap = len(trace)
+        p = CurvePoint.from_trace(trace, ap - 6 if p_i is None else p_i)
+        q = CurvePoint.from_trace(trace, ap - 3 if q_i is None else q_i)
+        assert p != q
+        coef = (q.y - p.y) / (q.x - p.x)
+        if p == O:
+            q.write(trace)
+        elif q == O:
+            p.write(trace)
+        else:
+            x = coef**2 - p.x - q.x
+            y = coef * (p.x - x) - p.y
+            CurvePoint(x, y).write(trace)
 
-        k = trace[ap - 4]
-        R1 = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
+    def trace_double(self, trace: list):
+        ap = len(trace)
+        p = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
+
+        coef = (3 * (p.x**2) + self.alpha) / (2 * p.y)
+        trace.append(coef)
+
+        if p.infinity:
+            O.write(trace)
+        else:
+            x = coef**2 - p.x - p.x
+            y = coef * (p.x - x) - p.y
+            trace.append(x)
+            trace.append(y)
+            trace.append(0)
+
+    # multiplication implemented with montgomery ladder
+    def trace_mul(self, trace, k_i=None, p_i=None, max_bit_size=252):
+
+        k = trace[k_i if k_i else -4]
+        R1 = CurvePoint.from_trace(trace, p_i)
         R0 = O
+
         bits = []
-
-        R1.write(trace)
-        ap += 3
-
-        R0.write(trace)
-        ap += 3
-
         while k != 0:
             bits.append(k % 2)
             k //= 2
-
         while len(bits) < max_bit_size:
             bits.append(0)
+
+        R1.write(trace)
+        R0.write(trace)
 
         for bit in reversed(bits):
 
             self.trace_add(trace)
-            ap += 4
-            added = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
-
+            added = CurvePoint.from_trace(trace)
             trace.append(bit)
-            ap += 1
 
             if bit == 0:
                 R0.write(trace)
-                ap += 3
                 self.trace_double(trace)
-                ap += 4
-                doubled = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
+                doubled = CurvePoint.from_trace(trace)
                 R1 = added
                 R0 = doubled
             else:
                 R1.write(trace)
-                ap += 3
                 self.trace_double(trace)
-                ap += 4
-                doubled = CurvePoint(trace[ap - 3], trace[ap - 2], trace[ap - 1])
+                doubled = CurvePoint.from_trace(trace)
                 R1 = doubled
                 R0 = added
 
             R1.write(trace)
-            ap += 3
-
             R0.write(trace)
-            ap += 3
 
         return trace

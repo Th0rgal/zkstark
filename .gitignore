@@ -1,3 +1,4 @@
+*.precomputed.json
 migrations/*.json
 
 ### Nile ###

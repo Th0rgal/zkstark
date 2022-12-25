@@ -1,6 +1,7 @@
 from tools.field import FieldElement
 from tools.curve import Curve, CurvePoint, O
 from tools.pedersen import pedersen_hash, trace_pedersen_hash
+from tools.merkle import MerkleTree, verify_proof
 
 P1 = CurvePoint(
     FieldElement(
@@ -80,7 +81,6 @@ assert MUL == stark_curve.mul(FieldElement(1), P1)
 assert MUL == P1
 
 # PEDERSEN HASH
-
 a = FieldElement(12345)
 b = FieldElement(
     1395468594777789475957636303561172780005680120301357285285003256932339552272
@@ -95,3 +95,17 @@ assert (
     hashed
     == 1542017980271000938816108123437786423529808864567079555458315006906729086202
 )
+
+# MERKLE TREE
+tree = MerkleTree([FieldElement(1), FieldElement(2), FieldElement(3)])
+
+A = pedersen_hash(FieldElement(1), FieldElement(2))
+# values not included in the tree are initialized to -1 at the right
+B = pedersen_hash(FieldElement(3), FieldElement(-1))
+C = pedersen_hash(A, B)
+
+assert C == tree.root.as_felt()
+proof = tree.get_merkle_proof(A)
+
+assert verify_proof(tree.root.as_felt(), A, proof) == True
+assert verify_proof(tree.root.as_felt(), B, proof) == False

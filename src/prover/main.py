@@ -68,55 +68,57 @@ commitment_1 = FieldElement(
 
 # 7) A - CONSTANTS (P0 - P4)
 
-constraints = []
 
-# [P1] f(x) = P1.x for x = G[3]
-constraints.append((f - P1.x) / (X - G[3]))
-constraints.append((f - P1.y) / (X - G[4]))
-constraints.append((f - P1.infinity) / (X - G[5]))
+def load_constraints():
+    constraints = []
+    # [P1] f(x) = P1.x for x = G[3]
+    constraints.append((f - P1.x) / (X - G[3]))
+    constraints.append((f - P1.y) / (X - G[4]))
+    constraints.append((f - P1.infinity) / (X - G[5]))
 
-# [P2]
-constraints.append((f - P2.x) / (X - G[4477]))
-constraints.append((f - P2.y) / (X - G[4478]))
-constraints.append((f - P2.infinity) / (X - G[4479]))
+    # [P2]
+    constraints.append((f - P2.x) / (X - G[4477]))
+    constraints.append((f - P2.y) / (X - G[4478]))
+    constraints.append((f - P2.infinity) / (X - G[4479]))
 
-# [P3]
-constraints.append((f - P3.x) / (X - G[4559]))
-constraints.append((f - P3.y) / (X - G[4560]))
-constraints.append((f - P3.infinity) / (X - G[4561]))
+    # [P3]
+    constraints.append((f - P3.x) / (X - G[4559]))
+    constraints.append((f - P3.y) / (X - G[4560]))
+    constraints.append((f - P3.infinity) / (X - G[4561]))
 
-# [P4]
-constraints.append((f - P4.x) / (X - G[9033]))
-constraints.append((f - P4.y) / (X - G[9034]))
-constraints.append((f - P4.infinity) / (X - G[9035]))
+    # [P4]
+    constraints.append((f - P4.x) / (X - G[9033]))
+    constraints.append((f - P4.y) / (X - G[9034]))
+    constraints.append((f - P4.infinity) / (X - G[9035]))
 
-# [P5]
-constraints.append((f - P0.x) / (X - G[9126]))
-constraints.append((f - P0.y) / (X - G[9127]))
-constraints.append((f - P0.infinity) / (X - G[9128]))
+    # [P5]
+    constraints.append((f - P0.x) / (X - G[9126]))
+    constraints.append((f - P0.y) / (X - G[9127]))
+    constraints.append((f - P0.infinity) / (X - G[9128]))
+    return constraints
 
-# 7) B - lows and highs
+    # 7) B - lows and highs
 
-# a) a_low + a_high * 2**128 - a = 0
-# a_id = 0
-# a_low_id = a_id + 2
-# => a_low = f(a_id * g**2)
-# a_high_id = a_id + 4476
-# => a_high = f(a_id * g**4476)
-constraints.append(
-    (f(X * g**2) + FieldElement(2**128) * f(X * g**4474) - f) / (X - G[0])
-)
+    # a) a_low + a_high * 2**128 - a = 0
+    # a_id = 0
+    # a_low_id = a_id + 2
+    # => a_low = f(a_id * g**2)
+    # a_high_id = a_id + 4476
+    # => a_high = f(a_id * g**4476)
+    constraints.append(
+        (f(X * g**2) + FieldElement(2**248) * f(X * g**4476) - f) / (X - G[0])
+    )
 
-# for B
-constraints.append(
-    (f(X * g**4557) + FieldElement(2**128) * f(X * g**9031) - f) / (X - G[1])
-)
+    # for B
+    constraints.append(
+        (f(X * g**4557) + FieldElement(2**248) * f(X * g**9031) - f) / (X - G[1])
+    )
 
-for i, constraint in constraints:
-    print(i, constraint.degree())
 
-cp = FieldElement(random.randrange(1, P)) * constraints[0]
-for i in range(1, len(constraints)):
-    cp += FieldElement(random.randrange(1, P)) * constraints[i]
+# constraints = load_constraints()
+# cp: Polynomial = FieldElement(random.randrange(1, P)) * constraints[0]
+# for i in range(1, len(constraints)):
+#     cp += FieldElement(random.randrange(1, P)) * constraints[i]
 
-print("yay")
+precomputed = open("cp_evaluation.precomputed.json", "r")
+cp = Polynomial([FieldElement(felt) for felt in json.load(precomputed)])

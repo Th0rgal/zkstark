@@ -71,7 +71,6 @@ def trace_pedersen_hash(trace: list):
 
     a = trace[-2]
     b = trace[-1]
-
     a_high = FieldElement(a.val >> LOW_PART_BITS)
     a_low = FieldElement(a.val & LOW_PART_MASK)
     b_high = FieldElement(b.val >> LOW_PART_BITS)

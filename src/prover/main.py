@@ -58,6 +58,8 @@ precomputed = open("evaluation.precomputed.json", "r")
 f_eval = [FieldElement(felt) for felt in json.load(precomputed)]
 
 # 6) Commitment
-
-first_tree = MerkleTree(f_eval)
-print(first_tree.root.as_felt())
+# first_tree = MerkleTree(f_eval)
+# commitment_1 = first_tree.root.as_felt()
+commitment_1 = FieldElement(
+    -892985561352262060265542067674069167736680963668018777433588830440521106473
+)

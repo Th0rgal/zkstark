@@ -1,5 +1,5 @@
 from tools.field import P, FieldElement
-from tools.pedersen import trace_pedersen_hash
+from tools.pedersen import trace_pedersen_hash, P0, P1, P2, P3, P4
 from tools.polynomial import X, interpolate_poly, Polynomial
 from tools.merkle import MerkleTree
 import random
@@ -63,3 +63,60 @@ f_eval = [FieldElement(felt) for felt in json.load(precomputed)]
 commitment_1 = FieldElement(
     -892985561352262060265542067674069167736680963668018777433588830440521106473
 )
+
+# 7) Creating the constraints
+
+# 7) A - CONSTANTS (P0 - P4)
+
+constraints = []
+
+# [P1] f(x) = P1.x for x = G[3]
+constraints.append((f - P1.x) / (X - G[3]))
+constraints.append((f - P1.y) / (X - G[4]))
+constraints.append((f - P1.infinity) / (X - G[5]))
+
+# [P2]
+constraints.append((f - P2.x) / (X - G[4477]))
+constraints.append((f - P2.y) / (X - G[4478]))
+constraints.append((f - P2.infinity) / (X - G[4479]))
+
+# [P3]
+constraints.append((f - P3.x) / (X - G[4559]))
+constraints.append((f - P3.y) / (X - G[4560]))
+constraints.append((f - P3.infinity) / (X - G[4561]))
+
+# [P4]
+constraints.append((f - P4.x) / (X - G[9033]))
+constraints.append((f - P4.y) / (X - G[9034]))
+constraints.append((f - P4.infinity) / (X - G[9035]))
+
+# [P5]
+constraints.append((f - P0.x) / (X - G[9126]))
+constraints.append((f - P0.y) / (X - G[9127]))
+constraints.append((f - P0.infinity) / (X - G[9128]))
+
+# 7) B - lows and highs
+
+# a) a_low + a_high * 2**128 - a = 0
+# a_id = 0
+# a_low_id = a_id + 2
+# => a_low = f(a_id * g**2)
+# a_high_id = a_id + 4476
+# => a_high = f(a_id * g**4476)
+constraints.append(
+    (f(X * g**2) + FieldElement(2**128) * f(X * g**4474) - f) / (X - G[0])
+)
+
+# for B
+constraints.append(
+    (f(X * g**4557) + FieldElement(2**128) * f(X * g**9031) - f) / (X - G[1])
+)
+
+for i, constraint in constraints:
+    print(i, constraint.degree())
+
+cp = FieldElement(random.randrange(1, P)) * constraints[0]
+for i in range(1, len(constraints)):
+    cp += FieldElement(random.randrange(1, P)) * constraints[i]
+
+print("yay")

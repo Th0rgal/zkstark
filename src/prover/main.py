@@ -95,7 +95,6 @@ def load_constraints():
     constraints.append((f - P0.x) / (X - G[9126]))
     constraints.append((f - P0.y) / (X - G[9127]))
     constraints.append((f - P0.infinity) / (X - G[9128]))
-    return constraints
 
     # 7) B - lows and highs
 
@@ -113,6 +112,10 @@ def load_constraints():
     constraints.append(
         (f(X * g**4557) + FieldElement(2**248) * f(X * g**9031) - f) / (X - G[1])
     )
+
+    # todo: make sure a_low and a_high are in the right range
+
+    return constraints
 
 
 # constraints = load_constraints()

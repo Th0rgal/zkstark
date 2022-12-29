@@ -58,8 +58,8 @@ precomputed = open("evaluation.precomputed.json", "r")
 f_eval = [FieldElement(felt) for felt in json.load(precomputed)]
 
 # 6) Commitment
-# first_tree = MerkleTree(f_eval)
-# commitment_1 = first_tree.root.as_felt()
+# tree1 = MerkleTree(f_eval)
+# commitment_1 = tree1.root.as_felt()
 commitment_1 = FieldElement(
     -892985561352262060265542067674069167736680963668018777433588830440521106473
 )
@@ -125,3 +125,9 @@ def load_constraints():
 
 precomputed = open("cp_evaluation.precomputed.json", "r")
 cp = Polynomial([FieldElement(felt) for felt in json.load(precomputed)])
+# cp_eval = [cp(d) for d in eval_domain]
+# tree2 = MerkleTree(cp_eval)
+# commitment_2 = tree2.root.as_felt() # took 7400 secs
+commitment_2 = FieldElement(
+    26605493500479369556213127282096112110197592822071662355125631862500381691
+)

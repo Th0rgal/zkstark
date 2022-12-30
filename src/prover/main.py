@@ -25,14 +25,15 @@ hashed = trace[-3]  # CurvePoint.from_trace(trace).x
 assert len(trace) == 9133
 
 # 3) we find a small subgroup of F which can contain the trace
+# it needs to be a power of two for the FRI operator we are going to use later
 # P-1 = 2^192 * 5 * 7 * 98714381 * 166848103
-# so 10240 = 5*2^11 | P-1
+# so 16384 = 2^14 | P-1
 # we can find the generator of this subgroup
-g = FieldElement.generator() ** (2 ** (192 - 11) * 7 * 98714381 * 166848103)
-assert g.is_order(10240)
+g = FieldElement.generator() ** (2 ** (192 - 14) * 5 * 7 * 98714381 * 166848103)
+assert g.is_order(16384)
 
 # we can then find the elements of this subgroup
-G = [g**i for i in range(10240)]
+G = [g**i for i in range(16384)]
 
 # 4) we interpolate the trace to find the polynomial
 
@@ -45,23 +46,25 @@ precomputed.close()
 
 # 5) A - we find a 8 = 2^3 times bigger subgroup of F which can contain the trace
 w = FieldElement.generator()
-h = w ** (2 ** (192 - 14) * 7 * 98714381 * 166848103)
-assert h.is_order(8 * 10240)
-H = [h**i for i in range(8 * 10240)]
+h = w ** (2 ** (192 - 17) * 5 * 7 * 98714381 * 166848103)
+assert h.is_order(8 * 16384)
+H = [h**i for i in range(131072)]
 # 5) B - we find a coset from this subgroup by multiplying by the F generator
 eval_domain = [w * x for x in H]
 
 # 5) C - we evaluate the trace polynomial
 
-# f_eval = [f(d).val for d in eval_domain]
+# f_eval = [f(d) for d in eval_domain]
 precomputed = open("evaluation.precomputed.json", "r")
+# json.dump([felt.val for felt in f_eval], precomputed)
 f_eval = [FieldElement(felt) for felt in json.load(precomputed)]
+precomputed.close()
 
 # 6) Commitment
 # tree1 = MerkleTree(f_eval)
 # commitment_1 = tree1.root.as_felt()
 commitment_1 = FieldElement(
-    -892985561352262060265542067674069167736680963668018777433588830440521106473
+    1595787962022531245624847181090830808081998341433042357041337723410218745237
 )
 
 # 7) Creating the constraints
@@ -118,16 +121,19 @@ def load_constraints():
     return constraints
 
 
-# constraints = load_constraints()
-# cp: Polynomial = FieldElement(random.randrange(1, P)) * constraints[0]
-# for i in range(1, len(constraints)):
-#     cp += FieldElement(random.randrange(1, P)) * constraints[i]
+constraints = load_constraints()
+cp: Polynomial = FieldElement(random.randrange(1, P)) * constraints[0]
+for i in range(1, len(constraints)):
+    cp += FieldElement(random.randrange(1, P)) * constraints[i]
+
+# cp_eval = [felt.val for felt in [cp(d) for d in eval_domain]]
+# json.dump(cp_eval, precomputed)
 
 precomputed = open("cp_evaluation.precomputed.json", "r")
-cp = Polynomial([FieldElement(felt) for felt in json.load(precomputed)])
-# cp_eval = [cp(d) for d in eval_domain]
+cp_eval = [FieldElement(felt) for felt in json.load(precomputed)]
+
 # tree2 = MerkleTree(cp_eval)
-# commitment_2 = tree2.root.as_felt() # took 7400 secs
+# commitment_2 = tree2.root.as_felt()  # took a few hours
 commitment_2 = FieldElement(
-    26605493500479369556213127282096112110197592822071662355125631862500381691
+    -1689479757597063810966045831641560301883693609217504222648469013377678398461
 )

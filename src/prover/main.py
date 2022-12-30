@@ -121,10 +121,10 @@ def load_constraints():
     return constraints
 
 
-constraints = load_constraints()
-cp: Polynomial = FieldElement(random.randrange(1, P)) * constraints[0]
-for i in range(1, len(constraints)):
-    cp += FieldElement(random.randrange(1, P)) * constraints[i]
+# constraints = load_constraints()
+# cp: Polynomial = FieldElement(random.randrange(1, P)) * constraints[0]
+# for i in range(1, len(constraints)):
+#     cp += FieldElement(random.randrange(1, P)) * constraints[i]
 
 # cp_eval = [felt.val for felt in [cp(d) for d in eval_domain]]
 # json.dump(cp_eval, precomputed)

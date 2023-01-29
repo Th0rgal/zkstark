@@ -38,7 +38,7 @@ G = [g**i for i in range(16384)]
 # 4) we interpolate the trace to find the polynomial
 
 # f = interpolate_poly(G[: len(trace)], trace)
-precomputed = open("polynom.precomputed.json", "r")
+precomputed = open("trace.precomputed.json", "r")
 f = Polynomial([FieldElement(felt) for felt in json.load(precomputed)])
 precomputed.close()
 
@@ -61,11 +61,13 @@ f_eval = [FieldElement(felt) for felt in json.load(precomputed)]
 precomputed.close()
 
 # 6) Commitment
+commitments = []
 # tree1 = MerkleTree(f_eval)
 # commitment_1 = tree1.root.as_felt()
 commitment_1 = FieldElement(
     1595787962022531245624847181090830808081998341433042357041337723410218745237
 )
+commitments.append(commitment_1)
 
 # 7) Creating the constraints
 
@@ -126,14 +128,71 @@ def load_constraints():
 # for i in range(1, len(constraints)):
 #     cp += FieldElement(random.randrange(1, P)) * constraints[i]
 
-# cp_eval = [felt.val for felt in [cp(d) for d in eval_domain]]
-# json.dump(cp_eval, precomputed)
+precomputed = open("cp.precomputed.json", "r")
+# json.dump([felt.val for felt in cp.poly], precomputed)
+cp = Polynomial([FieldElement(felt) for felt in json.load(precomputed)])
+precomputed.close()
+
+# cp_eval = [cp(d) for d in eval_domain]
+# json.dump([felt.val for felt in cp_eval], precomputed)
 
 precomputed = open("cp_evaluation.precomputed.json", "r")
 cp_eval = [FieldElement(felt) for felt in json.load(precomputed)]
+precomputed.close()
 
 # tree2 = MerkleTree(cp_eval)
 # commitment_2 = tree2.root.as_felt()  # took a few hours
 commitment_2 = FieldElement(
     -1689479757597063810966045831641560301883693609217504222648469013377678398461
 )
+commitments.append(commitment_2)
+
+
+def next_fri_domain(fri_domain):
+    return [x**2 for x in fri_domain[: len(fri_domain) // 2]]
+
+
+def next_fri_polynomial(poly, beta):
+    odd_coefficients = poly.poly[1::2]
+    even_coefficients = poly.poly[::2]
+    odd = beta * Polynomial(odd_coefficients)
+    even = Polynomial(even_coefficients)
+    return odd + even
+
+
+def next_fri_layer(poly, domain, beta):
+    next_poly = next_fri_polynomial(poly, beta)
+    next_domain = next_fri_domain(domain)
+    next_layer = [next_poly(x) for x in next_domain]
+    return next_poly, next_domain, next_layer
+
+
+def fri_commit(cp, domain, cp_eval, cp_merkle, commitments):
+    fri_polys = [cp]
+    fri_domains = [domain]
+    fri_layers = [cp_eval]
+    fri_merkles = [cp_merkle]
+    while fri_polys[-1].degree() > 0:
+        beta = random.randrange(1, P)
+        next_poly, next_domain, next_layer = next_fri_layer(
+            fri_polys[-1], fri_domains[-1], beta
+        )
+        fri_polys.append(next_poly)
+        fri_domains.append(next_domain)
+        fri_layers.append(next_layer)
+        fri_merkles.append(MerkleTree(next_layer))
+        print("commiting", fri_merkles[-1].root)
+        commitments.append(fri_merkles[-1].root)
+    print("commiting", str(fri_polys[-1].poly[0]))
+    commitments.append(str(fri_polys[-1].poly[0]))
+    return fri_polys, fri_domains, fri_layers, fri_merkles
+
+
+import time
+
+start = time.time()
+fri_polys, fri_domains, fri_layers, fri_merkles = fri_commit(
+    cp, eval_domain, cp_eval, None, commitments
+)
+# took 8906.681478977203 secs
+print("took", time.time() - start)

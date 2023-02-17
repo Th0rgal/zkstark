@@ -2,6 +2,7 @@ from tools.field import P, FieldElement
 from tools.pedersen import trace_pedersen_hash, P0, P1, P2, P3, P4
 from tools.polynomial import X, interpolate_poly, Polynomial
 from tools.merkle import MerkleTree
+from tools.channel import Channel
 import random
 import json
 
@@ -61,13 +62,13 @@ f_eval = [FieldElement(felt) for felt in json.load(precomputed)]
 precomputed.close()
 
 # 6) Commitment
-commitments = []
+channel = Channel()
 # tree1 = MerkleTree(f_eval)
 # commitment_1 = tree1.root.as_felt()
 commitment_1 = FieldElement(
     1595787962022531245624847181090830808081998341433042357041337723410218745237
 )
-commitments.append(commitment_1)
+channel.send(commitment_1)
 
 # 7) Creating the constraints
 
@@ -124,9 +125,9 @@ def load_constraints():
 
 
 # constraints = load_constraints()
-# cp: Polynomial = FieldElement(random.randrange(1, P)) * constraints[0]
+# cp: Polynomial = FieldElement(channel.get_random_felt()) * constraints[0]
 # for i in range(1, len(constraints)):
-#     cp += FieldElement(random.randrange(1, P)) * constraints[i]
+#     cp += FieldElement(channel.get_random_felt()) * constraints[i]
 
 precomputed = open("cp.precomputed.json", "r")
 # json.dump([felt.val for felt in cp.poly], precomputed)
@@ -139,13 +140,6 @@ precomputed.close()
 precomputed = open("cp_evaluation.precomputed.json", "r")
 cp_eval = [FieldElement(felt) for felt in json.load(precomputed)]
 precomputed.close()
-
-# tree2 = MerkleTree(cp_eval)
-# commitment_2 = tree2.root.as_felt()  # took a few hours
-commitment_2 = FieldElement(
-    -1689479757597063810966045831641560301883693609217504222648469013377678398461
-)
-commitments.append(commitment_2)
 
 
 def next_fri_domain(fri_domain):
@@ -167,32 +161,89 @@ def next_fri_layer(poly, domain, beta):
     return next_poly, next_domain, next_layer
 
 
-def fri_commit(cp, domain, cp_eval, cp_merkle, commitments):
+def fri_commit(cp, domain, cp_eval, cp_merkle, channel):
     fri_polys = [cp]
     fri_domains = [domain]
     fri_layers = [cp_eval]
     fri_merkles = [cp_merkle]
+    fri_betas = []
     while fri_polys[-1].degree() > 0:
-        beta = random.randrange(1, P)
+        beta = channel.get_random_felt()
         next_poly, next_domain, next_layer = next_fri_layer(
             fri_polys[-1], fri_domains[-1], beta
         )
+
+        print(
+            "f(x**2)=",
+            next_poly(
+                FieldElement(
+                    1676280475013780086314849244578185374697224669829387782894287038657238242407
+                )
+            ),
+        )
+
         fri_polys.append(next_poly)
         fri_domains.append(next_domain)
         fri_layers.append(next_layer)
-        fri_merkles.append(MerkleTree(next_layer))
-        print("commiting", fri_merkles[-1].root)
-        commitments.append(fri_merkles[-1].root)
-    print("commiting", str(fri_polys[-1].poly[0]))
-    commitments.append(str(fri_polys[-1].poly[0]))
-    return fri_polys, fri_domains, fri_layers, fri_merkles
+        fri_betas.append(beta)
+        break
+        # fri_merkles.append(MerkleTree(next_layer))
+        # channel.send(fri_merkles[-1].root)
+
+    # free element of degree 0 poly
+    channel.send(fri_polys[-1].poly[0])
+    return fri_polys, fri_domains, fri_layers, fri_merkles, fri_betas
 
 
 import time
 
+# tree2 = MerkleTree(cp_eval)
+# commitment_2 = tree2.root.as_felt()  # took a few hours
+tree2 = None
+commitment_2 = FieldElement(
+    -1689479757597063810966045831641560301883693609217504222648469013377678398461
+)
+channel.send(commitment_2)
+
 start = time.time()
-fri_polys, fri_domains, fri_layers, fri_merkles = fri_commit(
-    cp, eval_domain, cp_eval, None, commitments
+fri_polys, fri_domains, fri_layers, fri_merkles, fri_betas = fri_commit(
+    cp, eval_domain, cp_eval, tree2, channel
 )
 # took 8906.681478977203 secs
 print("took", time.time() - start)
+
+# Now let's generate the proof
+# We will do only one query as an example
+
+# Reveal a random value of CP and its sibling (for x, reveal -x whose id = id + k/2 mod k)
+
+
+def sibling_check(layer_id, fri_domains, fri_layers, fri_merkles):
+    domain = fri_domains[layer_id]
+    length = len(domain)
+    random_id = channel.get_random_felt().val % length
+    print(random_id)
+    sibling_id = (random_id + length // 2) % length
+    fx = fri_layers[layer_id][random_id]
+    fsib_x = fri_layers[layer_id][sibling_id]
+    x = domain[random_id]
+    print("x:", x)
+    squared_x = FieldElement(
+        1676280475013780086314849244578185374697224669829387782894287038657238242407
+    )
+    print("f(x):", fx, "f(-x):", fsib_x)
+    son = fri_layers[layer_id + 1][sibling_id % (length // 2)]
+    print("f(x^2):", son)
+    beta = fri_betas[layer_id]
+    # Verifier should check test = son
+    # test = (fx + fsib_x) / FieldElement(2) + beta * (fx - fsib_x) / (
+    #    FieldElement(2) * x
+    # )
+    # todo: reveal their merkle proof in channel.commitments[1]
+
+
+sibling_check(0, fri_domains, fri_layers, fri_merkles)
+
+
+# Find x**2 in next layer
+fri_layers[1]

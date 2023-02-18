@@ -7,8 +7,8 @@ class Channel:
         self.state = FieldElement(1)
         self.commitments = []
 
-    def send(self, felt : FieldElement):
-        self.commitments.append(felt)
+    def send(self, note: str, felt : FieldElement):
+        self.commitments.append((note, felt))
         self.state = pedersen_hash(self.state, felt)
 
     def get_random_felt(self):

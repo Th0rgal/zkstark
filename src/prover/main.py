@@ -68,7 +68,7 @@ channel = Channel()
 commitment_1 = FieldElement(
     1595787962022531245624847181090830808081998341433042357041337723410218745237
 )
-channel.send(commitment_1)
+channel.send("root of evaluation on coset", commitment_1)
 
 # 7) Creating the constraints
 
@@ -172,26 +172,15 @@ def fri_commit(cp, domain, cp_eval, cp_merkle, channel):
         next_poly, next_domain, next_layer = next_fri_layer(
             fri_polys[-1], fri_domains[-1], beta
         )
-
-        print(
-            "f(x**2)=",
-            next_poly(
-                FieldElement(
-                    1676280475013780086314849244578185374697224669829387782894287038657238242407
-                )
-            ),
-        )
-
         fri_polys.append(next_poly)
         fri_domains.append(next_domain)
         fri_layers.append(next_layer)
         fri_betas.append(beta)
-        break
         # fri_merkles.append(MerkleTree(next_layer))
-        # channel.send(fri_merkles[-1].root)
+        # channel.send("fri step root", fri_merkles[-1].root)
 
     # free element of degree 0 poly
-    channel.send(fri_polys[-1].poly[0])
+    channel.send("fri output constant", fri_polys[-1].poly[0])
     return fri_polys, fri_domains, fri_layers, fri_merkles, fri_betas
 
 
@@ -203,7 +192,7 @@ tree2 = None
 commitment_2 = FieldElement(
     -1689479757597063810966045831641560301883693609217504222648469013377678398461
 )
-channel.send(commitment_2)
+channel.send("cp evaluation on lde", commitment_2)
 
 start = time.time()
 fri_polys, fri_domains, fri_layers, fri_merkles, fri_betas = fri_commit(
@@ -218,31 +207,37 @@ print("took", time.time() - start)
 # Reveal a random value of CP and its sibling (for x, reveal -x whose id = id + k/2 mod k)
 
 
-def sibling_check(layer_id, fri_domains, fri_layers, fri_merkles):
+def fri_check(layer_id, domain_id, fri_domains, fri_layers, fri_merkles):
+    if layer_id == len(fri_layers):
+        return
     domain = fri_domains[layer_id]
     length = len(domain)
-    random_id = channel.get_random_felt().val % length
-    print(random_id)
-    sibling_id = (random_id + length // 2) % length
-    fx = fri_layers[layer_id][random_id]
+    print("layer:", layer_id, "length:", length)
+    sibling_id = (domain_id + length // 2) % length
+    fx = fri_layers[layer_id][domain_id]
     fsib_x = fri_layers[layer_id][sibling_id]
-    x = domain[random_id]
-    print("x:", x)
-    squared_x = FieldElement(
-        1676280475013780086314849244578185374697224669829387782894287038657238242407
-    )
-    print("f(x):", fx, "f(-x):", fsib_x)
-    son = fri_layers[layer_id + 1][sibling_id % (length // 2)]
-    print("f(x^2):", son)
-    beta = fri_betas[layer_id]
-    # Verifier should check test = son
-    # test = (fx + fsib_x) / FieldElement(2) + beta * (fx - fsib_x) / (
-    #    FieldElement(2) * x
-    # )
+    print("- f(x):", fx, "f(-x):", fsib_x)
     # todo: reveal their merkle proof in channel.commitments[1]
 
+    # f(x^2) from next f
+    next_domain_id = sibling_id % (length // 2)
 
-sibling_check(0, fri_domains, fri_layers, fri_merkles)
+    # # Verification code:
+    # x = domain[domain_id]
+    # next_query = fri_layers[layer_id + 1][next_domain_id]
+    # beta = fri_betas[layer_id]
+    # # Verifier should check test = next_query
+    # test = (fx + fsib_x) / FieldElement(2) + beta * (fx - fsib_x) / (
+    #     FieldElement(2) * x
+    # )
+    # assert test == next_query
+
+    return fri_check(layer_id + 1, next_domain_id, fri_domains, fri_layers, fri_merkles)
+
+
+length = len(eval_domain)
+random_id = channel.get_random_felt().val % length
+fri_check(0, random_id, fri_domains, fri_layers, fri_merkles)
 
 
 # Find x**2 in next layer

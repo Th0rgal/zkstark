@@ -117,9 +117,7 @@ class Curve:
         else:
             x = coef**2 - p.x - p.x
             y = coef * (p.x - x) - p.y
-            trace.append(x)
-            trace.append(y)
-            trace.append(FieldElement(0))
+            CurvePoint(x, y).write(trace)
 
     # multiplication implemented with montgomery ladder
     def trace_mul(self, trace, k_i=None, p_i=None, max_bit_size=252):
@@ -159,5 +157,3 @@ class Curve:
 
             R1.write(trace)
             R0.write(trace)
-
-        return trace

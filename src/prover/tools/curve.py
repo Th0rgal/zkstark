@@ -27,10 +27,10 @@ class CurvePoint:
             "O" if self.infinity.val else "(" + repr(self.x) + ", " + repr(self.y) + ")"
         )
 
-    def write(self, trace):
-        trace.append(self.x)
-        trace.append(self.y)
-        trace.append(self.infinity)
+    def write(self, register, i):
+        register[i] = self.x
+        register[i + 1] = self.y
+        register[i + 2] = self.infinity
 
 
 O = CurvePoint(FieldElement(0), FieldElement(1), FieldElement(1))
@@ -91,40 +91,32 @@ class Curve:
     # Computing with trace
     ############################
 
-    def trace_add(self, trace, p_i=None, q_i=None):
-        ap = len(trace)
-        p = CurvePoint.from_trace(trace, ap - 6 if p_i is None else p_i)
-        q = CurvePoint.from_trace(trace, ap - 3 if q_i is None else q_i)
+    def verifiable_add(self, p: CurvePoint, q: CurvePoint):
         assert p != q
         coef = (q.y - p.y) / (q.x - p.x)
-        trace.append(coef)
 
         if p == O:
-            q.write(trace)
+            return coef, q
         elif q == O:
-            p.write(trace)
+            return coef, p
         else:
             x = coef**2 - p.x - q.x
             y = coef * (p.x - x) - p.y
-            CurvePoint(x, y).write(trace)
+            return coef, CurvePoint(x, y)
 
-    def trace_double(self, trace: list):
-        p = CurvePoint.from_trace(trace)
+    def verifiable_double(self, p: CurvePoint):
+
         coef = (FieldElement(3) * (p.x**2) + self.alpha) / (FieldElement(2) * p.y)
-        trace.append(coef)
+
         if p.infinity.val:
-            O.write(trace)
+            return coef, O
         else:
             x = coef**2 - p.x - p.x
             y = coef * (p.x - x) - p.y
-            CurvePoint(x, y).write(trace)
+            return coef, CurvePoint(x, y)
 
     # multiplication implemented with montgomery ladder
-    def trace_mul(self, trace, k_i=None, p_i=None, max_bit_size=252):
-
-        k = trace[k_i if k_i else -4].val
-        R1 = CurvePoint.from_trace(trace, p_i)
-        R0 = O
+    def trace_mul(self, registers, k, R1, R0, max_bit_size=16):
 
         bits = []
         while k != 0:
@@ -133,27 +125,37 @@ class Curve:
         while len(bits) < max_bit_size:
             bits.append(0)
 
-        R1.write(trace)
-        R0.write(trace)
+        for i, bit in enumerate(reversed(bits)):
 
-        for bit in reversed(bits):
+            # we write in the id register
+            registers[i][0] = i
+            # in the bit one
+            registers[i][1] = bit
 
-            self.trace_add(trace)
-            added = CurvePoint.from_trace(trace)
-            trace.append(FieldElement(bit))
+            # in the add ones
+            coef, added = self.verifiable_add(R1, R0)
+            registers[i][2] = coef
+            added.write(registers[i], 3)
 
             if bit == 0:
-                R0.write(trace)
-                self.trace_double(trace)
-                doubled = CurvePoint.from_trace(trace)
+                R0.write(registers[i], 6)
+                coef, doubled = self.verifiable_double(R0)
                 R1 = added
                 R0 = doubled
             else:
-                R1.write(trace)
-                self.trace_double(trace)
-                doubled = CurvePoint.from_trace(trace)
+                R1.write(registers[i], 6)
+                coef, doubled = self.verifiable_double(R1)
                 R1 = doubled
                 R0 = added
+            registers[i][9] = coef
+            doubled.write(registers[i], 10)
 
-            R1.write(trace)
-            R0.write(trace)
+            R1.write(registers[i], 13)
+            R0.write(registers[i], 16)
+
+
+curve = Curve(
+    FieldElement(44499),
+    FieldElement(24688),
+)
+G = CurvePoint(15196, 12713)

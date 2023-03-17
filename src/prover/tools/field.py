@@ -21,7 +21,7 @@ An implementation of field elements from F_(2**251 + 17 * 2**192 + 1).
 
 from random import randint
 
-P = 2**251 + 17 * 2**192 + 1
+P = 2**10 * 37 + 1
 
 
 class FieldElement:

@@ -21,7 +21,7 @@ An implementation of field elements from F_(2**251 + 17 * 2**192 + 1).
 
 from random import randint
 
-P = 2**10 * 37 + 1
+P = 3 * 2**30 + 1
 
 
 class FieldElement:
@@ -30,7 +30,7 @@ class FieldElement:
     """
 
     k_modulus = P
-    generator_val = 3
+    generator_val = 5
 
     def __init__(self, val):
         self.val = val % FieldElement.k_modulus

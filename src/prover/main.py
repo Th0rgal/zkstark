@@ -19,17 +19,17 @@ k = random.randrange(1, P)
 # we initialize the registers to 0
 # [id : 0, bit : 1, add[coeff, x, y, inf] : 2, to_double[x, y, inf] : 6,
 # doubled[coeff, x, y, inf] : 9, r1[x, y, z] : 13, r0[x, y, z] : 16 ]
-registers = 17 * [19 * [0]]
+registers = 33 * [19 * [0]]
 
 # we fill registers at t=0
 G.write(registers[0], 13)
 O.write(registers[0], 16)
 
 # and we add our montgmery computation to the registers
-curve.trace_mul(registers, k, G, O, 16)
+curve.trace_mul(registers, k, G, O, 32)
 
 # 3) we find a small subgroup of F which can contain the trace
-# P-1 = 2**10 * 37 + 1
+# P-1 = 3 * 2**30
 # we can find the generator of this subgroup
-g = FieldElement.generator() ** (2**2 * 37)
-assert g.is_order(256)
+g = FieldElement.generator() ** (2**20 * 3)
+assert g.is_order(1024)

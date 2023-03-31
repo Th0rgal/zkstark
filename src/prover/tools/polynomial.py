@@ -21,13 +21,6 @@ A polynomial interface with the functionality required for STARK101.
 
 import operator
 from functools import reduce
-try:
-    from tqdm import tqdm
-except ModuleNotFoundError:
-    # tqdm is a wrapper for iterators implementing a progress bar. If it's
-    # not available, simply return the iterator itself.
-    tqdm = lambda x: x
-
 from tools.field import FieldElement
 from tools.list_utils import remove_trailing_elements, scalar_operation, two_lists_tuple_operation
 
@@ -302,7 +295,7 @@ def calculate_lagrange_polynomials(x_values):
     monomials = [Polynomial.monomial(1, FieldElement.one()) -
                  Polynomial.monomial(0, x) for x in x_values]
     numerator = prod(monomials)
-    for j in tqdm(range(len(x_values))):
+    for j in range(len(x_values)):
         # In the denominator, we have:
         # (x_j-x_0)(x_j-x_1)...(x_j-x_{j-1})(x_j-x_{j+1})...(x_j-x_{len(X)-1})
         denominator = prod([x_values[j] - x for i, x in enumerate(x_values) if i != j])

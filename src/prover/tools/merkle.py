@@ -1,77 +1,68 @@
-from tools.pedersen import pedersen_hash
-from tools.field import FieldElement
+from hashlib import sha256
 from math import log2, ceil
 
-
-class MerkleNode(object):
-    def __init__(self, left, right) -> None:
-        self.left = left
-        self.right = right
-        self.val = None
-
-    def as_felt(self):
-        return self.val if self.val else pedersen_hash(self.left, self.right)
+from tools.field import FieldElement
 
 
 class MerkleTree(object):
     """
-    A simple and naive implementation of an immutable Merkle tree with pedersen hash.
+    A simple and naive implementation of an immutable Merkle tree.
     """
 
-    def __init__(self, felt_arr):
-        assert isinstance(felt_arr, list)
-        assert len(felt_arr) > 0, "Cannot construct an empty Merkle Tree."
-        num_leaves = 2 ** ceil(log2(len(felt_arr)))
-        self.data = felt_arr + [FieldElement(-1)] * (num_leaves - len(felt_arr))
+    def __init__(self, data):
+        assert isinstance(data, list)
+        assert len(data) > 0, 'Cannot construct an empty Merkle Tree.'
+        num_leaves = 2 ** ceil(log2(len(data)))
+        self.data = data + [FieldElement(0)] * (num_leaves - len(data))
         self.height = int(log2(num_leaves))
-        self.parents = {}
+        self.facts = {}
         self.root = self.build_tree()
-        
 
-    def get_merkle_proof(self, felt):
-        proof = []
-        while felt in self.parents:
-            parent_node = self.parents[felt]
-            if parent_node.left == felt:
-                proof.append((False, parent_node.right))
-            else:
-                proof.append((True, parent_node.left))
-            felt = parent_node.as_felt()
-        return proof
+    def get_authentication_path(self, leaf_id):
+        assert 0 <= leaf_id < len(self.data)
+        node_id = leaf_id + len(self.data)
+        cur = self.root
+        decommitment = []
+        # In a Merkle Tree, the path from the root to a leaf, corresponds to the the leaf id's
+        # binary representation, starting from the second-MSB, where '0' means 'left', and '1' means
+        # 'right'.
+        # We therefore iterate over the bits of the binary representation - skipping the '0b'
+        # prefix, as well as the MSB.
+        for bit in bin(node_id)[3:]:
+            cur, auth = self.facts[cur]
+            if bit == '1':
+                auth, cur = cur, auth
+            decommitment.append(auth)
+        return decommitment
 
     def build_tree(self):
-        stage = []
-        for i in range(len(self.data) // 2):
-            a = self.data[2 * i]
-            b = self.data[2 * i + 1]
-            node = MerkleNode(a, b)
-            self.parents[a] = node
-            self.parents[b] = node
-            stage.append(node)
+        return self.recursive_build_tree(1)
 
-        while len(stage) > 1:
-            stage = self.parent_stage(stage)
-
-        return stage[0]
-
-    def parent_stage(self, stage):
-        new_stage = []
-        for node_id in range(len(stage) // 2):
-            a = stage[2 * node_id].as_felt()
-            b = stage[2 * node_id + 1].as_felt()
-            node = MerkleNode(a, b)
-            self.parents[a] = node
-            self.parents[b] = node
-            new_stage.append(node)
-        return new_stage
-
-
-def verify_proof(root_felt, felt, proof):
-
-    for is_left, value in proof:
-        if is_left:
-            felt = pedersen_hash(value, felt)
+    def recursive_build_tree(self, node_id):
+        if node_id >= len(self.data):
+            # A leaf.
+            id_in_data = node_id - len(self.data)
+            leaf_data = str(self.data[id_in_data])
+            h = sha256(leaf_data.encode()).hexdigest()
+            self.facts[h] = leaf_data
+            return h
         else:
-            felt = pedersen_hash(felt, value)
+            # An internal node.
+            left = self.recursive_build_tree(node_id * 2)
+            right = self.recursive_build_tree(node_id * 2 + 1)
+            h = sha256((left + right).encode()).hexdigest()
+            self.facts[h] = (left, right)
+            return h
 
-    return felt == root_felt
+
+def verify_decommitment(leaf_id, leaf_data, decommitment, root):
+    leaf_num = 2 ** len(decommitment)
+    node_id = leaf_id + leaf_num
+    cur = sha256(str(leaf_data).encode()).hexdigest()
+    for bit, auth in zip(bin(node_id)[3:][::-1], decommitment[::-1]):
+        if bit == '0':
+            h = cur + auth
+        else:
+            h = auth + cur
+        cur = sha256(h.encode()).hexdigest()
+    return cur == root

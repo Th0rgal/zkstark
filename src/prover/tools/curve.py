@@ -27,10 +27,10 @@ class CurvePoint:
             "O" if self.infinity.val else "(" + repr(self.x) + ", " + repr(self.y) + ")"
         )
 
-    def write(self, register, i):
-        register[i] = self.x
-        register[i + 1] = self.y
-        register[i + 2] = self.infinity
+    def write(self, registers, step, first_register_id):
+        registers[first_register_id][step] = self.x
+        registers[first_register_id + 1][step] = self.y
+        registers[first_register_id + 2][step] = self.infinity
 
 
 O = CurvePoint(FieldElement(0), FieldElement(1), FieldElement(1))
@@ -128,34 +128,34 @@ class Curve:
         for i, bit in enumerate(reversed(bits)):
 
             # we write in the id register
-            registers[i][0] = i
+            registers[0][i+1] = FieldElement(i+1)
             # in the bit one
-            registers[i][1] = bit
+            registers[1][i+1] = FieldElement(bit)
 
             # in the add ones
             coef, added = self.verifiable_add(R1, R0)
-            registers[i][2] = coef
-            added.write(registers[i], 3)
+            registers[2][i+1] = coef
+            added.write(registers, i+1, 3)
 
             if bit == 0:
-                R0.write(registers[i], 6)
+                R0.write(registers, i+1, 6)
                 coef, doubled = self.verifiable_double(R0)
                 R1 = added
                 R0 = doubled
             else:
-                R1.write(registers[i], 6)
+                R1.write(registers, i+1, 6)
                 coef, doubled = self.verifiable_double(R1)
                 R1 = doubled
                 R0 = added
-            registers[i][9] = coef
-            doubled.write(registers[i], 10)
+            registers[9][i+1] = coef
+            doubled.write(registers, i+1, 10)
 
-            R1.write(registers[i], 13)
-            R0.write(registers[i], 16)
+            R1.write(registers, i+1, 13)
+            R0.write(registers, i+1, 16)
 
 
 curve = Curve(
     FieldElement(44499),
     FieldElement(24688),
 )
-G = CurvePoint(15196, 12713)
+G = CurvePoint(FieldElement(72051298), FieldElement(2007892845))

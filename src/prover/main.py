@@ -87,10 +87,9 @@ def load_constraints(interpolated):
     )
 
     # bit = 0 | 1
-    id_bit = interpolated[1]
+    bit = interpolated[1]
     constraints.append(
-        ((id_bit(X) - FieldElement.one()) * (id_bit(X) - FieldElement.zero()))
-        / all_roots
+        ((bit(X) - FieldElement.one()) * (bit(X) - FieldElement.zero())) / all_roots
     )
 
     # elliptic curve add, p = R1, q = R0
@@ -141,6 +140,29 @@ def load_constraints(interpolated):
 
     # 4)
     constraints.append((z(X * g) - p_z(X) * q_z(X)) / all_roots_but_last)
+
+    # to_double: P if bit = 1, Q if bit = 0
+    to_double_x = interpolated[6]
+    to_double_y = interpolated[7]
+    to_double_z = interpolated[8]
+    constraints.append(
+        (to_double_x(X * g) - bit(X * g) * p_x - (1 - bit(X * g)) * q_x)
+        / all_roots_but_last
+    )
+    constraints.append(
+        (to_double_y(X * g) - bit(X * g) * p_y - (1 - bit(X * g)) * q_y)
+        / all_roots_but_last
+    )
+    constraints.append(
+        (to_double_z(X * g) - bit(X * g) * p_z - (1 - bit(X * g)) * q_z)
+        / all_roots_but_last
+    )
+
+    # doubled
+
+    # r1
+
+    # r0
 
     # edge constraints:
 

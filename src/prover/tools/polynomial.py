@@ -177,8 +177,6 @@ class Polynomial:
         pol2 = trim_trailing_zeros(other.poly)
         assert pol2, 'Dividing by zero polynomial.'
         pol1 = trim_trailing_zeros(self.poly)
-        if not pol1:
-            return [], []
         rem = pol1
         deg_dif = len(rem) - len(pol2)
         quotient = [FieldElement.zero()] * (deg_dif + 1)
@@ -198,7 +196,7 @@ class Polynomial:
 
     def __truediv__(self, other):
         div, mod = self.qdiv(other)
-        assert mod == 0, 'Polynomials are not divisible.'
+        assert mod == 0 or mod == [], 'Polynomials are not divisible.'
         return div
 
     def __mod__(self, other):

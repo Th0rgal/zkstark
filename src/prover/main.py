@@ -95,7 +95,7 @@ def load_constraints(interpolated):
 
     # elliptic curve add, p = R1, q = R0
     # 1) (λ * (q.x - p.x) - q.y + p.y)*(1-z) = 0
-    # 2) x = λ^2 - p.x - q.x
+    # 2) x = λ^2 - p.x - q.x AND infinity case
     # 3) y = λ * (p.x - x) - p.y
     # 4) z = p.z * q.z
 
@@ -112,6 +112,35 @@ def load_constraints(interpolated):
 
     # 1)
     constraints.append((lambda_f(X * g) * (q_x - p_x) - q_y + p_y) / all_roots_but_last)
+
+    # 2)
+    constraints.append(
+        (
+            x(X * g)
+            - (
+                (lambda_f(X * g) * lambda_f(X * g) - p_x - q_x) * (1 - p_z) * (1 - q_z)
+                + p_z * q_x
+                + q_z * p_x
+            )
+        )
+        / all_roots_but_last
+    )
+
+    # 3)
+    constraints.append(
+        (
+            y(X * g)
+            - (
+                (lambda_f(X * g) * (p_x - x(X * g)) - p_y) * (1 - p_z) * (1 - q_z)
+                + p_z * q_y
+                + q_z * p_y
+            )
+        )
+        / all_roots_but_last
+    )
+
+    # 4)
+    constraints.append((z(X * g) - p_z(X) * q_z(X)) / all_roots_but_last)
 
     # edge constraints:
 

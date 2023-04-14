@@ -128,30 +128,30 @@ class Curve:
         for i, bit in enumerate(reversed(bits)):
 
             # we write in the id register
-            registers[0][i+1] = FieldElement(i+1)
+            registers[0][i + 1] = FieldElement(i + 1)
             # in the bit one
-            registers[1][i+1] = FieldElement(bit)
+            registers[1][i + 1] = FieldElement(bit)
 
             # in the add ones
             coef, added = self.verifiable_add(R1, R0)
-            registers[2][i+1] = coef
-            added.write(registers, i+1, 3)
+            registers[2][i + 1] = coef
+            added.write(registers, i + 1, 3)
 
             if bit == 0:
-                R0.write(registers, i+1, 6)
+                R0.write(registers, i + 1, 6)
                 coef, doubled = self.verifiable_double(R0)
                 R1 = added
                 R0 = doubled
             else:
-                R1.write(registers, i+1, 6)
+                R1.write(registers, i + 1, 6)
                 coef, doubled = self.verifiable_double(R1)
                 R1 = doubled
                 R0 = added
-            registers[9][i+1] = coef
-            doubled.write(registers, i+1, 10)
+            registers[9][i + 1] = coef
+            doubled.write(registers, i + 1, 10)
 
-            R1.write(registers, i+1, 13)
-            R0.write(registers, i+1, 16)
+            R1.write(registers, i + 1, 13)
+            R0.write(registers, i + 1, 16)
 
 
 curve = Curve(

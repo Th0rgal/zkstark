@@ -217,5 +217,17 @@ def load_constraints(interpolated):
 
     # edge constraints:
 
+    first_root_only = X - g**0
+
+    # G
+    constraints.append((r1_x - G.x) / first_root_only)
+    constraints.append((r1_y - G.y) / first_root_only)
+    constraints.append((r1_z - G.infinity) / first_root_only)
+
+    # O
+    constraints.append((r0_x - O.x) / first_root_only)
+    constraints.append((r0_y - O.y) / first_root_only)
+    constraints.append((r0_z - O.infinity) / first_root_only)
+
 
 load_constraints(interpolated)

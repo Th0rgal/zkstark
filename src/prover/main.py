@@ -229,5 +229,95 @@ def load_constraints(interpolated):
     constraints.append((r0_y - O.y) / first_root_only)
     constraints.append((r0_z - O.infinity) / first_root_only)
 
+    return constraints
 
-load_constraints(interpolated)
+
+constraints = load_constraints(interpolated)
+
+cp: Polynomial = FieldElement(channel.receive_random_int(0, P - 1)) * constraints[0]
+for i in range(1, len(constraints)):
+    cp += FieldElement(channel.receive_random_int(0, P - 1)) * constraints[i]
+
+cp_eval = [cp(d) for d in eval_domain]
+
+
+def next_fri_domain(fri_domain):
+    return [x**2 for x in fri_domain[: len(fri_domain) // 2]]
+
+
+def next_fri_polynomial(poly, beta):
+    odd_coefficients = poly.poly[1::2]
+    even_coefficients = poly.poly[::2]
+    odd = beta * Polynomial(odd_coefficients)
+    even = Polynomial(even_coefficients)
+    return odd + even
+
+
+def next_fri_layer(poly, domain, beta):
+    next_poly = next_fri_polynomial(poly, beta)
+    next_domain = next_fri_domain(domain)
+    next_layer = [next_poly(x) for x in next_domain]
+    return next_poly, next_domain, next_layer
+
+
+def fri_commit(cp, domain, cp_eval, cp_merkle, channel: Channel):
+    fri_polys = [cp]
+    fri_domains = [domain]
+    fri_layers = [cp_eval]
+    fri_merkles = [cp_merkle]
+    fri_betas = []
+    while fri_polys[-1].degree() > 0:
+        beta = channel.receive_random_int(0, P - 1)
+        next_poly, next_domain, next_layer = next_fri_layer(
+            fri_polys[-1], fri_domains[-1], beta
+        )
+        fri_polys.append(next_poly)
+        fri_domains.append(next_domain)
+        fri_layers.append(next_layer)
+        fri_betas.append(beta)
+        # fri_merkles.append(MerkleTree(next_layer))
+        # channel.send("fri step root", fri_merkles[-1].root)
+
+    # free element of degree 0 poly
+    channel.send("fri step root: " + str(fri_polys[-1].poly[0]))
+    return fri_polys, fri_domains, fri_layers, fri_merkles, fri_betas
+
+
+evaluation_tree = MerkleTree(cp_eval)
+fri_polys, fri_domains, fri_layers, fri_merkles, fri_betas = fri_commit(
+    cp, eval_domain, cp_eval, evaluation_tree, channel
+)
+
+
+def fri_check(layer_id, domain_id, fri_domains, fri_layers, fri_merkles):
+    if layer_id == len(fri_layers):
+        return
+    domain = fri_domains[layer_id]
+    length = len(domain)
+    print("layer:", layer_id, "length:", length)
+    sibling_id = (domain_id + length // 2) % length
+    fx = fri_layers[layer_id][domain_id]
+    fsib_x = fri_layers[layer_id][sibling_id]
+    print("- f(x):", fx, "f(-x):", fsib_x)
+    # todo: reveal their merkle proof in channel.commitments[1]
+
+    # f(x^2) from next f
+    next_domain_id = sibling_id % (length // 2)
+
+    # Verification code:
+    # if layer_id <= 5:
+    #     x = domain[domain_id]
+    #     next_query = fri_layers[layer_id + 1][next_domain_id]
+    #     beta = fri_betas[layer_id]
+    #     # Verifier should check test = next_query
+    #     test = (fx + fsib_x) / FieldElement(2) + beta * (fx - fsib_x) / (
+    #         FieldElement(2) * x
+    #     )
+    #     assert test == next_query
+
+    return fri_check(layer_id + 1, next_domain_id, fri_domains, fri_layers, fri_merkles)
+
+
+length = len(eval_domain)
+random_id = channel.receive_random_int(0, P - 1) % length
+fri_check(0, random_id, fri_domains, fri_layers, fri_merkles)

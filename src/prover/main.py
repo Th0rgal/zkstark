@@ -82,6 +82,7 @@ def load_constraints(interpolated):
     # id register
     id_f = interpolated[0]
     all_roots_but_last = all_roots / (X - subgroup[-1])
+    all_roots_but_first = all_roots / (X - subgroup[0])
     constraints.append(
         (id_f(X * g) - id_f(X) - FieldElement.one()) / all_roots_but_last
     )
@@ -158,7 +159,45 @@ def load_constraints(interpolated):
         / all_roots_but_last
     )
 
-    # doubled
+    # elliptic curve double, Q if bit = 0, else P
+
+    # 1) λ * (2 * _Y) - 3 * _X^2 - α = 0
+    # 2) x - λ^2 + 2*_X = 0
+    # 3) y - λ * (_X - x) + _Y = 0
+    # 4) z - _Z = 0
+
+    doubled_lambda = interpolated[9]
+    doubled_x = interpolated[10]
+    doubled_y = interpolated[11]
+    doubled_z = interpolated[12]
+
+    # 1)
+    constraints.append(
+        (
+            doubled_lambda * FieldElement(2) * to_double_y
+            - (FieldElement(3) * to_double_x**2 + curve.alpha)
+        )
+        / all_roots_but_first
+    )
+
+    # 2)
+    constraints.append(
+        (doubled_x - doubled_lambda * doubled_lambda + FieldElement(2) * to_double_x)
+        * (1 - to_double_z)
+        / all_roots_but_first
+    )
+
+    # 3)
+    constraints.append(
+        (doubled_y - doubled_lambda * (to_double_x - doubled_x) + to_double_y)
+        * (1 - to_double_z)
+        / all_roots_but_first
+    )
+
+    # 4)
+    constraints.append(
+        (doubled_z - ((FieldElement(1) - bit) * q_z + bit * p_z)) / all_roots_but_first
+    )
 
     # r1
 

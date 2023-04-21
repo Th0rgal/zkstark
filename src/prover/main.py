@@ -200,8 +200,20 @@ def load_constraints(interpolated):
     )
 
     # r1
+    r1_x = interpolated[13]
+    r1_y = interpolated[14]
+    r1_z = interpolated[15]
+    constraints.append((r1_x - doubled_x * bit - x * (1 - bit)) / all_roots_but_first)
+    constraints.append((r1_y - doubled_y * bit - y * (1 - bit)) / all_roots_but_first)
+    constraints.append((r1_z - doubled_z * bit - z * (1 - bit)) / all_roots_but_first)
 
     # r0
+    r0_x = interpolated[16]
+    r0_y = interpolated[17]
+    r0_z = interpolated[18]
+    constraints.append((r0_x - doubled_x * (1 - bit) - x * bit) / all_roots_but_first)
+    constraints.append((r0_y - doubled_y * (1 - bit) - y * bit) / all_roots_but_first)
+    constraints.append((r0_z - doubled_z * (1 - bit) - z * bit) / all_roots_but_first)
 
     # edge constraints:
 

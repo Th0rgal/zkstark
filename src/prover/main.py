@@ -288,36 +288,41 @@ fri_polys, fri_domains, fri_layers, fri_merkles, fri_betas = fri_commit(
     cp, eval_domain, cp_eval, evaluation_tree, channel
 )
 
-
-def fri_check(layer_id, domain_id, fri_domains, fri_layers, fri_merkles):
-    if layer_id == len(fri_layers):
-        return
+def fri_check(layer_id, domain_id, fri_domains, fri_layers, fri_merkles, fri_betas):
+    if layer_id == len(fri_layers) - 1:
+        return True
     domain = fri_domains[layer_id]
     length = len(domain)
-    print("layer:", layer_id, "length:", length)
     sibling_id = (domain_id + length // 2) % length
     fx = fri_layers[layer_id][domain_id]
     fsib_x = fri_layers[layer_id][sibling_id]
-    print("- f(x):", fx, "f(-x):", fsib_x)
-    # todo: reveal their merkle proof in channel.commitments[1]
 
     # f(x^2) from next f
     next_domain_id = sibling_id % (length // 2)
 
-    # Verification code:
-    # if layer_id <= 5:
-    #     x = domain[domain_id]
-    #     next_query = fri_layers[layer_id + 1][next_domain_id]
-    #     beta = fri_betas[layer_id]
-    #     # Verifier should check test = next_query
-    #     test = (fx + fsib_x) / FieldElement(2) + beta * (fx - fsib_x) / (
-    #         FieldElement(2) * x
-    #     )
-    #     assert test == next_query
+    x = domain[domain_id]
+    next_query = fri_layers[layer_id + 1][next_domain_id]
+    beta = fri_betas[layer_id]
 
-    return fri_check(layer_id + 1, next_domain_id, fri_domains, fri_layers, fri_merkles)
+    test = (fx + fsib_x) / FieldElement(2) + beta * (fx - fsib_x) / (
+        FieldElement(2) * x
+    )
+
+    if test != next_query:
+        return False
+
+    return fri_check(layer_id + 1, next_domain_id, fri_domains, fri_layers, fri_merkles, fri_betas)
 
 
+def verify_proof(fri_domains, fri_layers, fri_merkles, fri_betas, random_id):
+    is_valid = fri_check(0, random_id, fri_domains, fri_layers, fri_merkles, fri_betas)
+    if is_valid:
+        print("Proof is valid.")
+    else:
+        print("Proof is invalid.")
+
+
+# Call the verify_proof function
 length = len(eval_domain)
 random_id = channel.receive_random_int(0, P - 1) % length
-fri_check(0, random_id, fri_domains, fri_layers, fri_merkles)
+verify_proof(fri_domains, fri_layers, fri_merkles, fri_betas, random_id)

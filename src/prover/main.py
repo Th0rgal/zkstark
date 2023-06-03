@@ -6,8 +6,8 @@ from tools.channel import Channel
 import random
 
 # G = (72051298 : 2007892845 : 1)
-# We need to prove we know a such that a * G is part of a list
-# ∃ a, hash(a, b) ∈ list
+# We need to prove we know a such that k * G is part of a list
+# ∃ k, k*G ∈ list
 
 # we use a seed to keep this example deterministic
 random.seed(0)
